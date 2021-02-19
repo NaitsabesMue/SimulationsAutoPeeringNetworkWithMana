@@ -10,121 +10,144 @@ import (
 	"time"
 )
 
-const totalNodes uint64 = 1000   // # of nodes
-const zipfs float64 = 0.8        // zipfs parameter
+// things to play in simulation:
+//
+//  Measure
+//  1. CDF of minimal distance as functions of mana, or ranks
+//  2. Eclipse probabilities, with honest adversaries, estimations
+//  3. diameter of network topology, mean degrees
+//  4. new nodes joining
+//
+// Change:
+//  1. adaptive k
+//  2. wormholes (?)
+//  (3.) hardcore -> soft selection process
+
+const totalNodes uint64 = 1000 // # of nodes
+//const zipfs float64 = 0.8        // zipfs parameter
 const k uint32 = 4               // Number of in/out neighbors
 const inBound uint32 = k         // InNeighbours
 const outBound uint32 = k        // OutNeighbours
 const loopNumber1 uint64 = 15000 // Loop First Round
 const loopNumber2 uint64 = 10000 // Loop Second Round
-const bigR uint64 = 20           // (j-i)<= bigR
-const rho uint64 = 2             // mana[i] < mana[j]*rho
+//const bigR uint64 = 20           // (j-i)<= bigR
+//const rho uint64 = 2             // mana[i] < mana[j]*rho
+
+var rhoMap = []float64{2, 2.5, 3, 3.5, 4}
+var bigRMap = []uint64{10, 20, 30, 50, 100}
+var zipfsMap = []float64{0.8, 1, 1.2}
 
 func main() {
-	var zipfsMana = make(map[uint64]uint64, totalNodes)
-	var listPossibleNeighbors = make(map[uint64][]uint64, totalNodes)
-	createZipfsMana(zipfsMana)
-	inNeighbors := make(map[uint64][]uint64, totalNodes)
-	outNeighbors := make(map[uint64][]uint64, totalNodes)
-	var nodeAsking uint64
-	var length int
-	var nRequested uint64
+	for _, rho := range rhoMap {
+		for _, zipfs := range zipfsMap {
+			for _, bigR := range bigRMap {
+				var zipfsMana = make(map[uint64]uint64, totalNodes)
+				var listPossibleNeighbors = make(map[uint64][]uint64, totalNodes)
+				createZipfsMana(zipfsMana, zipfs)
+				inNeighbors := make(map[uint64][]uint64, totalNodes)
+				outNeighbors := make(map[uint64][]uint64, totalNodes)
+				var nodeAsking uint64
+				var length int
+				var nRequested uint64
 
-	// initialize InOutNeighbors
-	for i := 1; i <= int(totalNodes); i++ {
-		inNeighbors[uint64(i)] = []uint64{}
-		outNeighbors[uint64(i)] = []uint64{}
-	}
+				// initialize InOutNeighbors
+				for i := 1; i <= int(totalNodes); i++ {
+					inNeighbors[uint64(i)] = []uint64{}
+					outNeighbors[uint64(i)] = []uint64{}
+				}
 
-	fmt.Println("\n-------------------------------------------------------------")
-	fmt.Println("------------------- SIMULATION ", time.Now().Format("01-02-2006 15:04:05"))
-	fmt.Println("---------------------------------------------------------------")
-	fmt.Println(" ")
+				fmt.Println("\n-------------------------------------------------------------")
+				fmt.Println("------------------- SIMULATION ", time.Now().Format("01-02-2006 15:04:05"))
+				fmt.Println("---------------------------------------------------------------")
+				fmt.Println(" ")
 
-	fmt.Println("totalNodes, Loop1, Loop2:", totalNodes, ",", loopNumber1, ",", loopNumber2)
-	fmt.Println("zipfs, k, R, rho:", zipfs, ",", k, ",", bigR, ",", rho)
+				fmt.Println("totalNodes, Loop1, Loop2:", totalNodes, ",", loopNumber1, ",", loopNumber2)
+				fmt.Println("zipfs, k, R, rho:", zipfs, ",", k, ",", bigR, ",", rho)
 
-	/////////////////////////////////////////////////////////////////////
-	/////////////////////////////////// FIRST ROUND
-	/////////////////////////////////////////////////////////////////////
+				/////////////////////////////////////////////////////////////////////
+				/////////////////////////////////// FIRST ROUND
+				/////////////////////////////////////////////////////////////////////
 
-	fmt.Println("\n////////////////// FIRST ROUND")
-	fmt.Println(" ")
+				fmt.Println("\n////////////////// FIRST ROUND")
+				fmt.Println(" ")
 
-	calculatePossibleNeigbors(listPossibleNeighbors, zipfsMana)
-	// ToDo: alert if some nodes don't have possible neighbours
+				calculatePossibleNeighbors(listPossibleNeighbors, zipfsMana, rho, bigR)
+				// ToDo: alert if some nodes don't have possible neighbours
 
-	// Create list of pairing prefereces by shuffling
-	shuffleSlice(listPossibleNeighbors)
-	//fmt.Println("ListPossibleNeighbors:", listPossibleNeighbors)
+				// Create list of pairing prefereces by shuffling
+				shuffleSlice(listPossibleNeighbors)
+				//fmt.Println("ListPossibleNeighbors:", listPossibleNeighbors)
 
-	for i := 1; i <= int(loopNumber1); i++ {
-		nodeAsking = uint64(rand.Intn(int(totalNodes)) + 1)
-		//outNeighborsAsking = outNeighbors[nodeAsking]
-		length = len(listPossibleNeighbors[nodeAsking])
-		nRequested = listPossibleNeighbors[nodeAsking][uint64(rand.Intn(length))]
-		//inNeighboursCandidate = inNeighbors[candidate]
+				for i := 1; i <= int(loopNumber1); i++ {
+					nodeAsking = uint64(rand.Intn(int(totalNodes)) + 1)
+					//outNeighborsAsking = outNeighbors[nodeAsking]
+					length = len(listPossibleNeighbors[nodeAsking])
+					nRequested = listPossibleNeighbors[nodeAsking][uint64(rand.Intn(length))]
+					//inNeighboursCandidate = inNeighbors[candidate]
 
-		updateInOutNeighbors(nodeAsking, nRequested, listPossibleNeighbors,
-			inNeighbors, outNeighbors)
-		// if !testUpdateInOut(inNeighbors, outNeighbors) {
-		// 	break
-		// }
-	}
-	//fmt.Println("ZipfsArray:", zipfsMana)
-	//fmt.Println("InNeighbors:", inNeighbors)
-	//fmt.Println("OutNeibours:", outNeighbors)
+					updateInOutNeighbors(nodeAsking, nRequested, listPossibleNeighbors,
+						inNeighbors, outNeighbors)
+					// if !testUpdateInOut(inNeighbors, outNeighbors) {
+					// 	break
+					// }
+				}
+				//fmt.Println("ZipfsArray:", zipfsMana)
+				//fmt.Println("InNeighbors:", inNeighbors)
+				//fmt.Println("OutNeibours:", outNeighbors)
 
-	nodesLowInDegree, nodesLowOutDegree, _, _ := calculateStatisticsLowDegreeNodes(inNeighbors, outNeighbors)
+				nodesLowInDegree, nodesLowOutDegree, _, _ := calculateStatisticsLowDegreeNodes(inNeighbors, outNeighbors)
 
-	////////////////////////////////////////////////////////////////////////////////
-	///////////////////// SECOND ROUND: PAIRING LowOutDegreeN WITH LowInDegreeN
-	////////////////////////////////////////////////////////////////////////////////
+				////////////////////////////////////////////////////////////////////////////////
+				///////////////////// SECOND ROUND: PAIRING LowOutDegreeN WITH LowInDegreeN
+				////////////////////////////////////////////////////////////////////////////////
 
-	fmt.Println(" ")
-	if loopNumber2 > 0 {
+				fmt.Println(" ")
+				if loopNumber2 > 0 {
 
-		fmt.Println("////////////////// SECOND ROUND: PAIRING LowOutDegreeN WITH LowInDegreeN")
-		fmt.Println(" ")
+					fmt.Println("////////////////// SECOND ROUND: PAIRING LowOutDegreeN WITH LowInDegreeN")
+					fmt.Println(" ")
 
-		var pLowInDN []uint64 // PossibleLowInDegreeNeighbors
-		length = len(nodesLowOutDegree)
+					var pLowInDN []uint64 // PossibleLowInDegreeNeighbors
+					length = len(nodesLowOutDegree)
 
-		for i := 0; i <= int(loopNumber2); i++ {
-			nodeAsking = nodesLowOutDegree[rand.Intn(length)]
-			pLowInDN = calculatePossibleLowInDegreeN(listPossibleNeighbors, inNeighbors, nodeAsking)
-			if len(pLowInDN) > 0 {
-				nRequested = pLowInDN[rand.Intn(len(pLowInDN))]
-				updateInOutNeighborsLowPairing(nodeAsking, nRequested, listPossibleNeighbors,
-					inNeighbors, outNeighbors, &nodesLowInDegree, &nodesLowOutDegree)
+					for i := 0; i <= int(loopNumber2); i++ {
+						nodeAsking = nodesLowOutDegree[rand.Intn(length)]
+						pLowInDN = calculatePossibleLowInDegreeN(listPossibleNeighbors, inNeighbors, nodeAsking)
+						if len(pLowInDN) > 0 {
+							nRequested = pLowInDN[rand.Intn(len(pLowInDN))]
+							updateInOutNeighborsLowPairing(nodeAsking, nRequested, listPossibleNeighbors,
+								inNeighbors, outNeighbors, &nodesLowInDegree, &nodesLowOutDegree)
 
+						}
+					}
+
+					//fmt.Println("InNeighbors:", inNeighbors)
+					//fmt.Println("OutNeibours:", outNeighbors)
+
+					calculateStatisticsLowDegreeNodes(inNeighbors, outNeighbors)
+					fmt.Print(" ")
+				}
+				// output in file
+				filenameResult := fmt.Sprint("outboundListrho", rho, "s", zipfs, "R", bigR, ".txt")
+				fOutbound, err := os.Create(filenameResult)
+				if err != nil {
+					log.Fatalf("error opening file: %v", err)
+				}
+				defer fOutbound.Close()
+				for identity := 1; identity <= int(totalNodes); identity++ {
+					appendToFile(fOutbound, fmt.Sprint(outNeighbors[uint64(identity)], "\n"))
+				}
+				filenameResult = fmt.Sprint("manaListrho", rho, "s", zipfs, "R", bigR, ".txt")
+				fMana, err := os.Create(filenameResult)
+				if err != nil {
+					log.Fatalf("error opening file: %v", err)
+				}
+				defer fMana.Close()
+				for identity := 1; identity <= int(totalNodes); identity++ {
+					appendToFile(fMana, fmt.Sprint(zipfsMana[uint64(identity)], "\n"))
+				}
 			}
 		}
-
-		//fmt.Println("InNeighbors:", inNeighbors)
-		//fmt.Println("OutNeibours:", outNeighbors)
-
-		calculateStatisticsLowDegreeNodes(inNeighbors, outNeighbors)
-		fmt.Print(" ")
-	}
-	// output in file
-	filenameResult := fmt.Sprint("outboundList.txt")
-	fOutbound, err := os.Create(filenameResult)
-	if err != nil {
-		log.Fatalf("error opening file: %v", err)
-	}
-	defer fOutbound.Close()
-	for identity := 1; identity <= int(totalNodes); identity++ {
-		appendToFile(fOutbound, fmt.Sprint(outNeighbors[uint64(identity)], "\n"))
-	}
-	filenameResult = fmt.Sprint("manaList.txt")
-	fMana, err := os.Create(filenameResult)
-	if err != nil {
-		log.Fatalf("error opening file: %v", err)
-	}
-	defer fMana.Close()
-	for identity := 1; identity <= int(totalNodes); identity++ {
-		appendToFile(fMana, fmt.Sprint(zipfsMana[uint64(identity)], "\n"))
 	}
 }
 
@@ -529,12 +552,12 @@ func find(source []uint64, value uint64) (uint64, bool) {
 	return 0, false
 }
 
-func calculatePossibleNeigbors(listPossibleNeighbors map[uint64][]uint64,
-	mana map[uint64]uint64) {
+func calculatePossibleNeighbors(listPossibleNeighbors map[uint64][]uint64,
+	mana map[uint64]uint64, rho float64, bigR uint64) {
 	for i := 1; i <= int(totalNodes); i++ {
 		for j := i + 1; j <= int(totalNodes); j++ {
 			// Condition1 := mana[i] < mana[j]*rho
-			if mana[uint64(i)] < mana[uint64(j)]*rho {
+			if mana[uint64(i)] < uint64(float64(mana[uint64(j)])*rho) {
 				//fmt.Println("i,j:", i, j)
 				listPossibleNeighbors[uint64(i)] = append(listPossibleNeighbors[uint64(i)], uint64(j))
 				listPossibleNeighbors[uint64(j)] = append(listPossibleNeighbors[uint64(j)], uint64(i))
@@ -576,7 +599,7 @@ func removeDuplicateValues(intSlice []uint64) []uint64 {
 	return list
 }
 
-func createZipfsMana(zipfsMana map[uint64]uint64) {
+func createZipfsMana(zipfsMana map[uint64]uint64, zipfs float64) {
 	scalingFactor := math.Pow(10, 10)
 	for i := 1; i < int(totalNodes+1); i++ {
 		zipfsMana[uint64(i)] = uint64(math.Pow(float64(i), -zipfs) * scalingFactor)
