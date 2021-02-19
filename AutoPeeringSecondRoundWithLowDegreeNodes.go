@@ -2,21 +2,23 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"math"
 	"math/rand"
+	"os"
 	"sort"
 	"time"
 )
 
-const totalNodes uint64 = 10000   // # of nodes
-const zipfs float64 = 0.8         // zipfs parameter
-const k uint32 = 4                // Number of in/out neighbors
-const inBound uint32 = k          // InNeighbours
-const outBound uint32 = k         // OutNeighbours
-const loopNumber1 uint64 = 150000 // Loop First Round
-const loopNumber2 uint64 = 100000 // Loop Second Round
-const bigR uint64 = 20            // (j-i)<= bigR
-const rho uint64 = 2              // mana[i] < mana[j]*rho
+const totalNodes uint64 = 1000   // # of nodes
+const zipfs float64 = 0.8        // zipfs parameter
+const k uint32 = 4               // Number of in/out neighbors
+const inBound uint32 = k         // InNeighbours
+const outBound uint32 = k        // OutNeighbours
+const loopNumber1 uint64 = 15000 // Loop First Round
+const loopNumber2 uint64 = 10000 // Loop Second Round
+const bigR uint64 = 20           // (j-i)<= bigR
+const rho uint64 = 2             // mana[i] < mana[j]*rho
 
 func main() {
 	var zipfsMana = make(map[uint64]uint64, totalNodes)
@@ -69,7 +71,7 @@ func main() {
 		// 	break
 		// }
 	}
-	// fmt.Println("ZipfsArray:", zipfsMana)
+	//fmt.Println("ZipfsArray:", zipfsMana)
 	//fmt.Println("InNeighbors:", inNeighbors)
 	//fmt.Println("OutNeibours:", outNeighbors)
 
@@ -105,7 +107,16 @@ func main() {
 		calculateStatisticsLowDegreeNodes(inNeighbors, outNeighbors)
 		fmt.Print(" ")
 	}
-
+	// output in file
+	filenameResult := fmt.Sprint("result_adjlist.txt")
+	fOutbound, err := os.Create(filenameResult)
+	if err != nil {
+		log.Fatalf("error opening file: %v", err)
+	}
+	defer fOutbound.Close()
+	for identity := 1; identity <= int(totalNodes); identity++ {
+		appendToFile(fOutbound, fmt.Sprint(outNeighbors[uint64(identity)], "\n"))
+	}
 }
 
 ///////////////////////////////////////////////////////////////
@@ -562,4 +573,8 @@ func createZipfsMana(zipfsMana map[uint64]uint64) {
 		zipfsMana[uint64(i)] = uint64(math.Pow(float64(i), -zipfs) * scalingFactor)
 	}
 	return
+}
+
+func appendToFile(f *os.File, s string) {
+	f.WriteString(s)
 }
