@@ -108,7 +108,7 @@ func main() {
 		fmt.Print(" ")
 	}
 	// output in file
-	filenameResult := fmt.Sprint("result_adjlist.txt")
+	filenameResult := fmt.Sprint("outboundList.txt")
 	fOutbound, err := os.Create(filenameResult)
 	if err != nil {
 		log.Fatalf("error opening file: %v", err)
@@ -116,6 +116,15 @@ func main() {
 	defer fOutbound.Close()
 	for identity := 1; identity <= int(totalNodes); identity++ {
 		appendToFile(fOutbound, fmt.Sprint(outNeighbors[uint64(identity)], "\n"))
+	}
+	filenameResult = fmt.Sprint("manaList.txt")
+	fMana, err := os.Create(filenameResult)
+	if err != nil {
+		log.Fatalf("error opening file: %v", err)
+	}
+	defer fMana.Close()
+	for identity := 1; identity <= int(totalNodes); identity++ {
+		appendToFile(fMana, fmt.Sprint(zipfsMana[uint64(identity)], "\n"))
 	}
 }
 
